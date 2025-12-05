@@ -153,6 +153,26 @@ class FliggyClient
     }
 
     /**
+     * 2.4. 获取价格/库存信息接口 queryProductPriceStock
+     */
+    public function queryProductPriceStock(string $productId, ?string $beginTime = null, ?string $endTime = null): Response
+    {
+        $params = ['productId' => $productId];
+        if ($beginTime) {
+            $params['beginTime'] = $beginTime;
+        }
+        if ($endTime) {
+            $params['endTime'] = $endTime;
+        }
+
+        return $this->send(
+            '/api/v1/hotelticket/queryProductPriceStock',
+            $params,
+            ['productId']
+        );
+    }
+
+    /**
      * 3.3. 创建订单接口 createOrder
      */
     public function createOrder(array $orderData): Response

@@ -64,9 +64,22 @@
                             </thead>
                             <tbody>
                                 @foreach ($products as $product)
+                                    @php $productId = $product['productId'] ?? null; @endphp
                                     <tr>
-                                        <td>{{ $product['productId'] ?? 'N/A' }}</td>
-                                        <td>{{ $product['productName'] ?? 'N/A' }}</td>
+                                        <td>
+                                            @if($productId)
+                                                <a href="{{ route('products.show', $productId) }}">{{ $productId }}</a>
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($productId)
+                                                <a href="{{ route('products.show', $productId) }}">{{ $product['productName'] ?? 'N/A' }}</a>
+                                            @else
+                                                {{ $product['productName'] ?? 'N/A' }}
+                                            @endif
+                                        </td>
                                         <td>{{ $product['productCategory'] ?? 'N/A' }}</td>
                                         <td>{{ $product['city'] ?? 'N/A' }}</td>
                                     </tr>

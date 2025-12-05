@@ -9,8 +9,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Main application route for displaying products
+// Main application routes
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+Route::get('/products/{productId}', [ProductController::class, 'show'])->name('products.show');
 
 
 Route::prefix('api/webhooks/fliggy')->group(function () {
@@ -24,9 +25,6 @@ Route::prefix('api/webhooks/fliggy')->group(function () {
  * =================================================================
  * These routes are for testing purposes. You can remove them later.
  */
-
-// The old test route is now replaced by the /products route handled by ProductController.
-// You can still use the other test routes.
 
 Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient) {
     $ids = request()->input('ids');
@@ -44,9 +42,5 @@ Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient)
 })->name('test.fliggy.products-by-ids');
 
 
-Route::get('/test-fliggy-product-detail/{productId}', function (FliggyClient $fliggyClient, string $productId) {
-    // Use the pre-production environment for testing
-    $response = $fliggyClient->usePreEnvironment()->queryProductDetailInfo($productId);
-
-    return $response->json();
-})->name('test.fliggy.product-detail');
+// The old /test-fliggy-product-detail/{productId} is now replaced by /products/{productId}
+// and handled by the ProductController.
