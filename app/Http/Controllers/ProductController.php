@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 
 class ProductController extends Controller
 {
@@ -56,11 +57,9 @@ class ProductController extends Controller
         $priceStock = null;
         $error = null;
 
-        // Define a unique cache key for this product's data
         $cacheKey = 'fliggy_product_' . $productId;
 
         try {
-            // Use cache to avoid hitting the API on every page load, for 10 minutes
             $cachedData = Cache::remember($cacheKey, 600, function () use ($productId, $fliggyClient) {
                 $detailResponse = $fliggyClient->usePreEnvironment()->queryProductDetailInfo($productId);
                 $priceStockResponse = $fliggyClient->usePreEnvironment()->queryProductPriceStock($productId);
@@ -72,7 +71,6 @@ class ProductController extends Controller
                     throw new \Exception($detailData['msg'] ?? 'Failed to fetch product detail.');
                 }
                 if (!$priceStockResponse->successful() || !($priceData['success'] ?? false)) {
-                    // Price info might not be critical, so we can choose to log instead of throwing
                     Log::channel('fliggy')->warning('Failed to fetch price/stock for ' . $productId, $priceData);
                 }
 
@@ -88,7 +86,7 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             $error = $e->getMessage();
             Log::channel('fliggy')->error('Failed to get product details for ' . $productId . ': ' . $e->getMessage());
-            Cache::forget($cacheKey); // Clear cache on error
+            Cache::forget($cacheKey);
         }
 
         return view('products.show', [
@@ -97,5 +95,46 @@ class ProductController extends Controller
             'priceStock' => $priceStock,
             'error' => $error,
         ]);
+    }
+
+    /**
+     * Handle the booking form submission.
+     */
+    public function storeBooking(Request $request, string $productId): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_date' => 'required|date_format:Y-m-d',
+            'name' => 'required|string|max:255',
+            'mobile' => ['required', 'string', 'regex:/^1[3-9]\d{9}$/'],
+            'id_card' => ['required', 'string', 'regex:/(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/'],
+        ]);
+
+        // At this point, validation has passed.
+        // Here you would typically call the Fliggy `createOrder` API.
+        // For now, we will just log the data and return a success message.
+
+        Log::channel('fliggy')->info('Booking form submitted and validated:', [
+            'productId' => $productId,
+            'validated_data' => $validated,
+        ]);
+
+        // Example of how you might call the createOrder API in the future:
+        /*
+        try {
+            $fliggyClient = new FliggyClient();
+            $orderData = [
+                // ... construct the order data array based on Fliggy's API requirements ...
+            ];
+            $response = $fliggyClient->createOrder($orderData);
+            if (!$response->successful() || !($response->json()['success'] ?? false)) {
+                 return back()->with('booking_error', 'Fliggy API rejected the order: ' . $response->json()['msg']);
+            }
+        } catch (\Exception $e) {
+            return back()->with('booking_error', 'An error occurred while creating the order: ' . $e->getMessage());
+        }
+        */
+
+        return redirect()->route('products.show', $productId)
+                         ->with('booking_success', 'Booking request for ' . $validated['selected_date'] . ' submitted successfully!');
     }
 }

@@ -12,6 +12,7 @@ Route::get('/', function () {
 // Main application routes
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/{productId}', [ProductController::class, 'show'])->name('products.show');
+Route::post('/products/{productId}/book', [ProductController::class, 'storeBooking'])->name('products.book');
 
 
 Route::prefix('api/webhooks/fliggy')->group(function () {
