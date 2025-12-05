@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'url' => env('HENGDIAN_URL', 'http://testhotel.hengdianworld.com/Interface/hotel_order.aspx'),
+    'url' => env('HENGDIAN_URL', 'http://e.hengdianworld.com/Interface/hotel_order.aspx'),
 
     'url_production' => env('HENGDIAN_URL_PRODUCTION', 'https://e.hengdianworld.com/Interface/hotel_order.aspx'),
 

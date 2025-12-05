@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FliggyWebhookController;
+use App\Http\Controllers\HengdianWebhookController;
 use App\Http\Controllers\ProductController;
 use App\Services\FliggyClient;
 use App\Services\HengdianClient;
@@ -10,23 +11,39 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Main application routes for Fliggy
-Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-Route::get('/products/{productId}', [ProductController::class, 'show'])->name('products.show');
-Route::post('/products/{productId}/book', [ProductController::class, 'storeBooking'])->name('products.book');
-
-
-Route::prefix('api/webhooks/fliggy')->group(function () {
-    Route::post('product-change', [FliggyWebhookController::class, 'handleProductChange'])->name('fliggy.webhooks.product-change');
-    Route::post('order-status', [FliggyWebhookController::class, 'handleOrderStatus'])->name('fliggy.webhooks.order-status');
+/*
+|--------------------------------------------------------------------------
+| Fliggy Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('products')->name('products.')->group(function () {
+    Route::get('/', [ProductController::class, 'index'])->name('index');
+    Route::get('/{productId}', [ProductController::class, 'show'])->name('show');
+    Route::post('/{productId}/book', [ProductController::class, 'storeBooking'])->name('book');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Webhook Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('api/webhooks')->name('webhooks.')->group(function () {
+    Route::prefix('fliggy')->name('fliggy.')->group(function () {
+        Route::post('product-change', [FliggyWebhookController::class, 'handleProductChange'])->name('product-change');
+        Route::post('order-status', [FliggyWebhookController::class, 'handleOrderStatus'])->name('order-status');
+    });
+    Route::prefix('hengdian')->name('hengdian.')->group(function () {
+        Route::post('room-status', [HengdianWebhookController::class, 'handleRoomStatus'])->name('room-status');
+    });
+});
+
 
 /*
 |--------------------------------------------------------------------------
 | Test Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('test')->group(function () {
+Route::prefix('test')->name('test.')->group(function () {
     // Fliggy Test Routes
     Route::get('/fliggy-products-by-ids', function (FliggyClient $fliggyClient) {
         $ids = request()->input('ids');
@@ -35,31 +52,58 @@ Route::prefix('test')->group(function () {
         }
         $productIds = explode(',', $ids);
         return $fliggyClient->usePreEnvironment()->queryProductBaseInfoByIds($productIds)->json();
-    })->name('test.fliggy.products-by-ids');
+    })->name('fliggy.products-by-ids');
 
     Route::get('/clear-product-cache/{productId}', function ($productId) {
         $cacheKey = 'fliggy_product_' . $productId;
         \Illuminate\Support\Facades\Cache::forget($cacheKey);
         return "Cache cleared for Fliggy product: " . e($productId);
-    })->name('test.cache.clear');
+    })->name('cache.clear');
 
-    // Hengdian Test Route
+    // Hengdian Test Routes
     Route::get('/hengdian-validate', function (HengdianClient $hengdianClient) {
         $responseXml = $hengdianClient->validate(
             packageId: '3271',
             hotelId: '001',
-            roomType: '标准间', // Changed back to Chinese
+            roomType: '标准间',
             checkIn: now()->addDay()->format('Y-m-d'),
-            checkOut: now()->addDays(3)->format('Y-m-d')
+            checkOut: now()->addDays(3)->format('Y-m-d'),
+            paymentType: 1
+        );
+        if ($responseXml) {
+            return response()->json(json_decode(json_encode($responseXml), TRUE));
+        }
+        return response()->json(['error' => 'Request failed or XML could not be parsed.'], 500);
+    })->name('hengdian.validate');
+
+    Route::get('/hengdian-subscribe', function (HengdianClient $hengdianClient) {
+        // IMPORTANT: You must expose your local server to the internet for this to work. Use a tool like ngrok.
+        $notifyUrl = route('webhooks.hengdian.room-status');
+
+        $hotelsToSubscribe = [
+            ['hotelId' => '001', 'roomTypes' => ['标准间', '豪华间']],
+            ['hotelId' => '002', 'roomTypes' => ['标准间']],
+        ];
+
+        $responseXml = $hengdianClient->subscribeRoomStatus(
+            notifyUrl: $notifyUrl,
+            hotels: $hotelsToSubscribe
         );
 
-        // To make it easily viewable in the browser, we convert the XML to a JSON-like array
-        if ($responseXml) {
-            $json = json_encode($responseXml);
-            $array = json_decode($json, TRUE);
-            return response()->json($array);
+        if ($responseXml && (string)$responseXml->ResultCode === '0') {
+            return response()->json([
+                'success' => true,
+                'message' => 'Subscription request sent successfully.',
+                'notify_url' => $notifyUrl,
+                'response' => json_decode(json_encode($responseXml), TRUE)
+            ]);
         }
 
-        return response()->json(['error' => 'Request failed or XML could not be parsed.'], 500);
-    })->name('test.hengdian.validate');
+        return response()->json([
+            'success' => false,
+            'message' => 'Subscription request failed.',
+            'notify_url' => $notifyUrl,
+            'response' => $responseXml ? json_decode(json_encode($responseXml), TRUE) : 'Request failed.'
+        ], 500);
+    })->name('hengdian.subscribe');
 });
