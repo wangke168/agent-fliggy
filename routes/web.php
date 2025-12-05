@@ -46,9 +46,9 @@ Route::prefix('test')->group(function () {
     // Hengdian Test Route
     Route::get('/hengdian-validate', function (HengdianClient $hengdianClient) {
         $responseXml = $hengdianClient->validate(
-            packageId: '1064',
+            packageId: '3271',
             hotelId: '001',
-            roomType: '标准间',
+            roomType: '标准间', // Changed back to Chinese
             checkIn: now()->addDay()->format('Y-m-d'),
             checkOut: now()->addDays(3)->format('Y-m-d')
         );
