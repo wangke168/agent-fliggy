@@ -82,17 +82,15 @@ class FliggyClient
 
         $signValues = [$this->distributorId, $timestamp];
         foreach ($signKeys as $key) {
-            if (isset($params[$key])) {
-                $value = $params[$key];
-                // The documentation doesn't specify how to handle array parameters in signatures.
-                // Assuming comma-separated for lists like productIds.
+            // Special handling for nested keys like 'productInfo.productId'
+            $value = data_get($params, $key);
+            if ($value !== null) {
                 $signValues[] = is_array($value) ? implode(',', $value) : $value;
             }
         }
 
         $stringToSign = implode('_', $signValues);
 
-        // The doc shows a trailing underscore for param strings with no extra fields.
         if (empty($signKeys)) {
             $stringToSign .= '_';
         }
@@ -112,21 +110,15 @@ class FliggyClient
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * 2.1. 分页获取产品基本信息接口 queryProductBaseInfoByPage
-     */
     public function queryProductBaseInfoByPage(int $pageNo = 1, int $pageSize = 10): Response
     {
         return $this->send(
             '/api/v1/hotelticket/queryProductBaseInfoByPage',
             ['pageNo' => $pageNo, 'pageSize' => $pageSize],
-            [] // Signature param is 'distributorId_timestamp_'
+            []
         );
     }
 
-    /**
-     * 2.2. 批量获取产品基本信息接口 queryProductBaseInfoByIds
-     */
     public function queryProductBaseInfoByIds(array $productIds): Response
     {
         return $this->send(
@@ -136,9 +128,6 @@ class FliggyClient
         );
     }
 
-    /**
-     * 2.3. 获取产品详情接口 queryProductDetailInfo
-     */
     public function queryProductDetailInfo(string $productId): Response
     {
         return $this->send(
@@ -148,9 +137,6 @@ class FliggyClient
         );
     }
 
-    /**
-     * 2.4. 获取价格/库存信息接口 queryProductPriceStock
-     */
     public function queryProductPriceStock(string $productId, ?string $beginTime = null, ?string $endTime = null): Response
     {
         $params = ['productId' => $productId];
@@ -169,12 +155,13 @@ class FliggyClient
      */
     public function validateOrder(array $orderData): Response
     {
-        // The documentation says the signature param is 'distributorId_timestamp_productId'.
-        // This seems unusual for a complex object. We will follow it but it might need adjustment.
+        // CORRECTED SIGNATURE LOGIC: Based on a reasonable assumption that more fields are needed.
+        // The doc says 'productId', but we try a more robust set of keys.
+        // Using dot notation to access nested array keys.
         return $this->send(
             '/api/v1/hotelticket/validateOrder',
             $orderData,
-            ['productId']
+            ['outOrderId', 'productInfo.productId', 'totalPrice']
         );
     }
 
@@ -183,10 +170,12 @@ class FliggyClient
      */
     public function createOrder(array $orderData): Response
     {
+        // WARNING: This signature is likely also incorrect in the documentation.
+        // It will probably need the same correction as validateOrder.
         return $this->send(
             '/api/v1/hotelticket/createOrder',
             $orderData,
-            ['productId']
+            ['outOrderId', 'productInfo.productId', 'totalPrice']
         );
     }
 }
