@@ -82,7 +82,6 @@ class FliggyClient
 
         $signValues = [$this->distributorId, $timestamp];
         foreach ($signKeys as $key) {
-            // Special handling for nested keys like 'productInfo.productId'
             $value = data_get($params, $key);
             if ($value !== null) {
                 $signValues[] = is_array($value) ? implode(',', $value) : $value;
@@ -112,29 +111,17 @@ class FliggyClient
 
     public function queryProductBaseInfoByPage(int $pageNo = 1, int $pageSize = 10): Response
     {
-        return $this->send(
-            '/api/v1/hotelticket/queryProductBaseInfoByPage',
-            ['pageNo' => $pageNo, 'pageSize' => $pageSize],
-            []
-        );
+        return $this->send('/api/v1/hotelticket/queryProductBaseInfoByPage', ['pageNo' => $pageNo, 'pageSize' => $pageSize], []);
     }
 
     public function queryProductBaseInfoByIds(array $productIds): Response
     {
-        return $this->send(
-            '/api/v1/hotelticket/queryProductBaseInfoByIds',
-            ['productIds' => $productIds],
-            ['productIds']
-        );
+        return $this->send('/api/v1/hotelticket/queryProductBaseInfoByIds', ['productIds' => $productIds], ['productIds']);
     }
 
     public function queryProductDetailInfo(string $productId): Response
     {
-        return $this->send(
-            '/api/v1/hotelticket/queryProductDetailInfo',
-            ['productId' => $productId],
-            ['productId']
-        );
+        return $this->send('/api/v1/hotelticket/queryProductDetailInfo', ['productId' => $productId], ['productId']);
     }
 
     public function queryProductPriceStock(string $productId, ?string $beginTime = null, ?string $endTime = null): Response
@@ -142,12 +129,7 @@ class FliggyClient
         $params = ['productId' => $productId];
         if ($beginTime) $params['beginTime'] = $beginTime;
         if ($endTime) $params['endTime'] = $endTime;
-
-        return $this->send(
-            '/api/v1/hotelticket/queryProductPriceStock',
-            $params,
-            ['productId']
-        );
+        return $this->send('/api/v1/hotelticket/queryProductPriceStock', $params, ['productId']);
     }
 
     /**
@@ -155,14 +137,24 @@ class FliggyClient
      */
     public function validateOrder(array $orderData): Response
     {
-        // CORRECTED SIGNATURE LOGIC: Based on a reasonable assumption that more fields are needed.
-        // The doc says 'productId', but we try a more robust set of keys.
-        // Using dot notation to access nested array keys.
-        return $this->send(
-            '/api/v1/hotelticket/validateOrder',
-            $orderData,
-            ['outOrderId', 'productInfo.productId', 'totalPrice']
-        );
+        // ATTEMPT 3: Strictly follow the documentation's literal value.
+        // The signature string is composed of values, not the object structure.
+        $timestamp = round(microtime(true) * 1000);
+        $productIdValue = data_get($orderData, 'productInfo.productId');
+
+        $stringToSign = implode('_', [
+            $this->distributorId,
+            $timestamp,
+            $productIdValue
+        ]);
+
+        $body = array_merge([
+            'distributorId' => $this->distributorId,
+            'timestamp' => $timestamp,
+            'sign' => $this->generateSign($stringToSign),
+        ], $orderData);
+
+        return $this->post('/api/v1/hotelticket/validateOrder', $body);
     }
 
     /**
@@ -170,12 +162,22 @@ class FliggyClient
      */
     public function createOrder(array $orderData): Response
     {
-        // WARNING: This signature is likely also incorrect in the documentation.
-        // It will probably need the same correction as validateOrder.
-        return $this->send(
-            '/api/v1/hotelticket/createOrder',
-            $orderData,
-            ['outOrderId', 'productInfo.productId', 'totalPrice']
-        );
+        // Reverting to the documented signature logic, but implemented manually like validateOrder.
+        $timestamp = round(microtime(true) * 1000);
+        $productIdValue = data_get($orderData, 'productInfo.productId');
+
+        $stringToSign = implode('_', [
+            $this->distributorId,
+            $timestamp,
+            $productIdValue
+        ]);
+
+        $body = array_merge([
+            'distributorId' => $this->distributorId,
+            'timestamp' => $timestamp,
+            'sign' => $this->generateSign($stringToSign),
+        ], $orderData);
+
+        return $this->post('/api/v1/hotelticket/createOrder', $body);
     }
 }
