@@ -47,3 +47,11 @@ Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient)
 
     return $response->json();
 })->name('test.fliggy.products-by-ids');
+
+
+Route::get('/test-fliggy-product-detail/{productId}', function (FliggyClient $fliggyClient, string $productId) {
+    // Use the pre-production environment for testing
+    $response = $fliggyClient->usePreEnvironment()->queryProductDetailInfo($productId);
+
+    return $response->json();
+})->name('test.fliggy.product-detail');
