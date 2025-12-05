@@ -2,11 +2,16 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FliggyWebhookController;
+use App\Http\Controllers\ProductController;
 use App\Services\FliggyClient;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Main application route for displaying products
+Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+
 
 Route::prefix('api/webhooks/fliggy')->group(function () {
     Route::post('product-change', [FliggyWebhookController::class, 'handleProductChange'])->name('fliggy.webhooks.product-change');
@@ -20,18 +25,8 @@ Route::prefix('api/webhooks/fliggy')->group(function () {
  * These routes are for testing purposes. You can remove them later.
  */
 
-Route::get('/test-fliggy-products', function (FliggyClient $fliggyClient) {
-    // You can test with different page numbers and sizes
-    // e.g., /test-fliggy-products?page=2&size=20
-    $page = request()->input('page', 1);
-    $size = request()->input('size', 10);
-
-    // Use the pre-production environment for testing
-    $response = $fliggyClient->usePreEnvironment()->queryProductBaseInfoByPage($page, $size);
-
-    return $response->json();
-})->name('test.fliggy.products');
-
+// The old test route is now replaced by the /products route handled by ProductController.
+// You can still use the other test routes.
 
 Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient) {
     $ids = request()->input('ids');
