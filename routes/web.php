@@ -81,8 +81,7 @@ Route::prefix('test')->name('test.')->group(function () {
         $notifyUrl = route('webhooks.hengdian.room-status');
 
         $hotelsToSubscribe = [
-            ['hotelId' => '001', 'roomTypes' => ['标准间', '豪华间']],
-            ['hotelId' => '002', 'roomTypes' => ['标准间']],
+            ['hotelId' => '001', 'roomTypes' => ['标准间', '大床房']],
         ];
 
         $responseXml = $hengdianClient->subscribeRoomStatus(
