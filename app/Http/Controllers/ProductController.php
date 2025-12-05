@@ -104,28 +104,22 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'selected_date' => 'required|date_format:Y-m-d',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:1',
             'name' => 'required|string|max:255',
             'mobile' => ['required', 'string', 'regex:/^1[3-9]\d{9}$/'],
             'id_card' => ['required', 'string', 'regex:/(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/'],
         ]);
 
         try {
-            // 1. Get price for the selected date from cache
-            $cacheKey = 'fliggy_product_' . $productId;
-            $cachedData = Cache::get($cacheKey);
-            $priceData = collect($cachedData['priceStock']['productPriceStock']['calendarStocks'] ?? [])
-                ->firstWhere('date', Carbon::parse($validated['selected_date'])->timestamp * 1000);
+            $priceInCents = (int)($validated['price'] * 100);
 
-            if (!$priceData) {
-                return back()->with('booking_error', 'Could not find price for the selected date. Please try again.');
-            }
-
-            // 2. Construct the order data for validation
+            // Construct the order data for validation
             $orderData = [
                 'outOrderId' => 'TEST-' . time(), // Unique external order ID
                 'productInfo' => [
                     'productId' => (int)$productId,
-                    'price' => (int)($priceData['distributionPrice'] * 100), // Price in cents
+                    'price' => $priceInCents,
                     'quantity' => 1,
                     'travelDate' => $validated['selected_date'],
                 ],
@@ -140,10 +134,10 @@ class ProductController extends Controller
                         'certificates' => $validated['id_card'],
                     ],
                 ],
-                'totalPrice' => (int)($priceData['distributionPrice'] * 100), // Total price in cents
+                'totalPrice' => $priceInCents,
             ];
 
-            // 3. Call the validateOrder API
+            // Call the validateOrder API
             $response = $fliggyClient->usePreEnvironment()->validateOrder($orderData);
             $responseData = $response->json();
 

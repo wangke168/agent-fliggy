@@ -75,13 +75,20 @@
                                 @for ($i = 0; $i < $start->dayOfWeek; $i++)<td class="calendar-day not-month"></td>@endfor
                                 @for ($date = $start->copy(); $date->lte($end); $date->addDay())
                                     @if ($date->dayOfWeek == 0 && !$date->isSameDay($start))</tr><tr>@endif
-                                    @php $current_date_str = $date->format('Y-m-d'); $hasPrice = isset($prices[$current_date_str]); @endphp
-                                    <td class="calendar-day {{ $hasPrice ? 'has-price' : '' }} {{ $date->isPast() && !$date->isToday() ? 'not-month' : '' }}"
-                                        @if($hasPrice) data-date="{{ $current_date_str }}" @endif>
+                                    @php
+                                        $current_date_str = $date->format('Y-m-d');
+                                        $priceInfo = $prices[$current_date_str] ?? null;
+                                    @endphp
+                                    <td class="calendar-day {{ $priceInfo ? 'has-price' : '' }} {{ $date->isPast() && !$date->isToday() ? 'not-month' : '' }}"
+                                        @if($priceInfo)
+                                            data-date="{{ $current_date_str }}"
+                                            data-price="{{ $priceInfo['price'] }}"
+                                            data-stock="{{ $priceInfo['stock'] }}"
+                                        @endif>
                                         <div class="day-number">{{ $date->day }}</div>
-                                        @if ($hasPrice)
-                                            <div class="day-price">¥{{ number_format($prices[$current_date_str]['price'], 2) }}</div>
-                                            <div class="day-stock">Stock: {{ $prices[$current_date_str]['stock'] }}</div>
+                                        @if ($priceInfo)
+                                            <div class="day-price">¥{{ number_format($priceInfo['price'], 2) }}</div>
+                                            <div class="day-stock">Stock: {{ $priceInfo['stock'] }}</div>
                                         @endif
                                     </td>
                                 @endfor
@@ -108,6 +115,8 @@
                         <form id="booking-form" method="POST" action="{{ route('products.book', $productId) }}">
                             @csrf
                             <input type="hidden" name="selected_date" id="selected_date">
+                            <input type="hidden" name="price" id="price">
+                            <input type="hidden" name="stock" id="stock">
                             <div class="mb-3">
                                 <label for="name" class="form-label">Name</label>
                                 <input type="text" class="form-control" id="name" name="name" required>
@@ -139,26 +148,23 @@
             const calendarDays = document.querySelectorAll('.calendar-day.has-price');
             const bookingFormContainer = document.getElementById('booking-form-container');
             const selectedDateInput = document.getElementById('selected_date');
+            const priceInput = document.getElementById('price');
+            const stockInput = document.getElementById('stock');
             const form = document.getElementById('booking-form');
 
             calendarDays.forEach(day => {
                 day.addEventListener('click', function () {
-                    // Remove 'selected' class from all other days
                     calendarDays.forEach(d => d.classList.remove('selected'));
-
-                    // Add 'selected' class to the clicked day
                     this.classList.add('selected');
 
-                    // Set the value of the hidden input
-                    const date = this.getAttribute('data-date');
-                    selectedDateInput.value = date;
+                    selectedDateInput.value = this.dataset.date;
+                    priceInput.value = this.dataset.price;
+                    stockInput.value = this.dataset.stock;
 
-                    // Show the booking form
                     bookingFormContainer.style.display = 'block';
                 });
             });
 
-            // Simple client-side validation feedback
             form.addEventListener('submit', function (event) {
                 if (!form.checkValidity()) {
                     event.preventDefault();
