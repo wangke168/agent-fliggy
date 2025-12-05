@@ -10,16 +10,19 @@
         .product-header { background-color: #ffffff; padding: 2rem; border-radius: 0.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
         .calendar { background-color: #ffffff; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
         .calendar-table { width: 100%; }
-        .calendar-table th, .calendar-table td { text-align: center; padding: 0.75rem; }
+        .calendar-table th, .calendar-table td { text-align: center; padding: 0.5rem; }
         .calendar-table thead { background-color: #343a40; color: #ffffff; }
         .calendar-day { vertical-align: top; border: 1px solid #dee2e6; height: 120px; transition: background-color 0.2s; }
         .calendar-day.not-month { background-color: #f8f9fa; }
         .calendar-day.has-price:hover { background-color: #e9ecef; cursor: pointer; }
         .calendar-day.selected { background-color: #0d6efd; color: white; }
-        .calendar-day.selected .day-price, .calendar-day.selected .day-stock { color: white; }
-        .day-number { font-weight: bold; font-size: 1.2rem; }
-        .day-price { color: #28a745; font-weight: bold; }
-        .day-stock { color: #6c757d; }
+        .calendar-day.selected .day-price, .calendar-day.selected .day-stock, .calendar-day.selected .day-label { color: white; }
+        .day-number { font-weight: bold; font-size: 1.1rem; }
+        .day-price { font-weight: bold; }
+        .day-label { font-size: 0.8em; color: #6c757d; }
+        .price-sale { color: #dc3545; }
+        .price-dist { color: #28a745; }
+        .day-stock { font-size: 0.9em; color: #6c757d; }
         .info-card, .booking-form-card { background-color: #ffffff; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; }
     </style>
 </head>
@@ -54,7 +57,11 @@
                             if (isset($priceStock['productPriceStock']['calendarStocks'])) {
                                 foreach ($priceStock['productPriceStock']['calendarStocks'] as $priceInfo) {
                                     $date = \Carbon\Carbon::createFromTimestampMs($priceInfo['date'])->format('Y-m-d');
-                                    $prices[$date] = ['price' => $priceInfo['distributionPrice'], 'stock' => $priceInfo['stock']];
+                                    $prices[$date] = [
+                                        'suggestedPrice' => $priceInfo['suggestedPrice'],
+                                        'distributionPrice' => $priceInfo['distributionPrice'],
+                                        'stock' => $priceInfo['stock']
+                                    ];
                                 }
                             }
                             $month = request('month', date('Y-m'));
@@ -82,13 +89,20 @@
                                     <td class="calendar-day {{ $priceInfo ? 'has-price' : '' }} {{ $date->isPast() && !$date->isToday() ? 'not-month' : '' }}"
                                         @if($priceInfo)
                                             data-date="{{ $current_date_str }}"
-                                            data-price="{{ $priceInfo['price'] }}"
+                                            data-price="{{ $priceInfo['distributionPrice'] }}"
                                             data-stock="{{ $priceInfo['stock'] }}"
                                         @endif>
                                         <div class="day-number">{{ $date->day }}</div>
                                         @if ($priceInfo)
-                                            <div class="day-price">¥{{ number_format($priceInfo['price'], 2) }}</div>
-                                            <div class="day-stock">Stock: {{ $priceInfo['stock'] }}</div>
+                                            <div>
+                                                <span class="day-label">售价</span>
+                                                <div class="day-price price-sale">¥{{ number_format($priceInfo['suggestedPrice'], 2) }}</div>
+                                            </div>
+                                            <div class="mt-1">
+                                                <span class="day-label">结算价</span>
+                                                <div class="day-price price-dist">¥{{ number_format($priceInfo['distributionPrice'], 2) }}</div>
+                                            </div>
+                                            <div class="day-stock mt-1">Stock: {{ $priceInfo['stock'] }}</div>
                                         @endif
                                     </td>
                                 @endfor
