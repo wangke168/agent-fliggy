@@ -110,10 +110,6 @@ class FliggyClient
     |--------------------------------------------------------------------------
     | API Method Implementations
     |--------------------------------------------------------------------------
-    |
-    | Below are example implementations for specific API endpoints.
-    | You should add methods for all the API calls you intend to use.
-    |
     */
 
     /**
@@ -158,12 +154,8 @@ class FliggyClient
     public function queryProductPriceStock(string $productId, ?string $beginTime = null, ?string $endTime = null): Response
     {
         $params = ['productId' => $productId];
-        if ($beginTime) {
-            $params['beginTime'] = $beginTime;
-        }
-        if ($endTime) {
-            $params['endTime'] = $endTime;
-        }
+        if ($beginTime) $params['beginTime'] = $beginTime;
+        if ($endTime) $params['endTime'] = $endTime;
 
         return $this->send(
             '/api/v1/hotelticket/queryProductPriceStock',
@@ -173,14 +165,24 @@ class FliggyClient
     }
 
     /**
+     * 3.1. 校验（预下单）接口 validateOrder
+     */
+    public function validateOrder(array $orderData): Response
+    {
+        // The documentation says the signature param is 'distributorId_timestamp_productId'.
+        // This seems unusual for a complex object. We will follow it but it might need adjustment.
+        return $this->send(
+            '/api/v1/hotelticket/validateOrder',
+            $orderData,
+            ['productId']
+        );
+    }
+
+    /**
      * 3.3. 创建订单接口 createOrder
      */
     public function createOrder(array $orderData): Response
     {
-        // Note: The doc says signature param is 'distributorId_timestamp_productId'.
-        // This seems too simple and might be an error in the documentation, as it omits
-        // crucial order details. This implementation follows the doc literally.
-        // If it fails, you may need to add other fields from $orderData to the signKeys array.
         return $this->send(
             '/api/v1/hotelticket/createOrder',
             $orderData,

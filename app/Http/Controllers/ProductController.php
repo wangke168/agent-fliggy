@@ -98,9 +98,9 @@ class ProductController extends Controller
     }
 
     /**
-     * Handle the booking form submission.
+     * Handle the booking form submission by validating the order.
      */
-    public function storeBooking(Request $request, string $productId): RedirectResponse
+    public function storeBooking(Request $request, string $productId, FliggyClient $fliggyClient): RedirectResponse
     {
         $validated = $request->validate([
             'selected_date' => 'required|date_format:Y-m-d',
@@ -109,32 +109,56 @@ class ProductController extends Controller
             'id_card' => ['required', 'string', 'regex:/(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/'],
         ]);
 
-        // At this point, validation has passed.
-        // Here you would typically call the Fliggy `createOrder` API.
-        // For now, we will just log the data and return a success message.
-
-        Log::channel('fliggy')->info('Booking form submitted and validated:', [
-            'productId' => $productId,
-            'validated_data' => $validated,
-        ]);
-
-        // Example of how you might call the createOrder API in the future:
-        /*
         try {
-            $fliggyClient = new FliggyClient();
-            $orderData = [
-                // ... construct the order data array based on Fliggy's API requirements ...
-            ];
-            $response = $fliggyClient->createOrder($orderData);
-            if (!$response->successful() || !($response->json()['success'] ?? false)) {
-                 return back()->with('booking_error', 'Fliggy API rejected the order: ' . $response->json()['msg']);
-            }
-        } catch (\Exception $e) {
-            return back()->with('booking_error', 'An error occurred while creating the order: ' . $e->getMessage());
-        }
-        */
+            // 1. Get price for the selected date from cache
+            $cacheKey = 'fliggy_product_' . $productId;
+            $cachedData = Cache::get($cacheKey);
+            $priceData = collect($cachedData['priceStock']['productPriceStock']['calendarStocks'] ?? [])
+                ->firstWhere('date', Carbon::parse($validated['selected_date'])->timestamp * 1000);
 
-        return redirect()->route('products.show', $productId)
-                         ->with('booking_success', 'Booking request for ' . $validated['selected_date'] . ' submitted successfully!');
+            if (!$priceData) {
+                return back()->with('booking_error', 'Could not find price for the selected date. Please try again.');
+            }
+
+            // 2. Construct the order data for validation
+            $orderData = [
+                'outOrderId' => 'TEST-' . time(), // Unique external order ID
+                'productInfo' => [
+                    'productId' => (int)$productId,
+                    'price' => (int)($priceData['distributionPrice'] * 100), // Price in cents
+                    'quantity' => 1,
+                    'travelDate' => $validated['selected_date'],
+                ],
+                'contactInfo' => [
+                    'name' => $validated['name'],
+                    'mobile' => $validated['mobile'],
+                ],
+                'travellerInfos' => [
+                    [
+                        'name' => $validated['name'],
+                        'certificatesType' => 3, // 3 = ID Card
+                        'certificates' => $validated['id_card'],
+                    ],
+                ],
+                'totalPrice' => (int)($priceData['distributionPrice'] * 100), // Total price in cents
+            ];
+
+            // 3. Call the validateOrder API
+            $response = $fliggyClient->usePreEnvironment()->validateOrder($orderData);
+            $responseData = $response->json();
+
+            if ($response->successful() && isset($responseData['success']) && $responseData['success']) {
+                return redirect()->route('products.show', $productId)
+                                 ->with('booking_success', 'Validation successful! This booking is valid.');
+            } else {
+                $errorMessage = $responseData['msg'] ?? 'The booking is not valid.';
+                return back()->with('booking_error', 'Validation Failed: ' . $errorMessage)
+                             ->withInput(); // Keep form data
+            }
+
+        } catch (\Exception $e) {
+            Log::channel('fliggy')->error('Exception during order validation: ' . $e->getMessage());
+            return back()->with('booking_error', 'An unexpected error occurred: ' . $e->getMessage());
+        }
     }
 }
