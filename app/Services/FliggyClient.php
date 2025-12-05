@@ -129,6 +129,18 @@ class FliggyClient
     }
 
     /**
+     * 2.2. 批量获取产品基本信息接口 queryProductBaseInfoByIds
+     */
+    public function queryProductBaseInfoByIds(array $productIds): Response
+    {
+        return $this->send(
+            '/api/v1/hotelticket/queryProductBaseInfoByIds',
+            ['productIds' => $productIds],
+            ['productIds']
+        );
+    }
+
+    /**
      * 2.3. 获取产品详情接口 queryProductDetailInfo
      */
     public function queryProductDetailInfo(string $productId): Response

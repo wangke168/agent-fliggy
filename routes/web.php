@@ -31,3 +31,19 @@ Route::get('/test-fliggy-products', function (FliggyClient $fliggyClient) {
 
     return $response->json();
 })->name('test.fliggy.products');
+
+
+Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient) {
+    $ids = request()->input('ids');
+
+    if (empty($ids)) {
+        return response()->json(['error' => 'Please provide product IDs via the "ids" query parameter. Example: ?ids=123,456'], 400);
+    }
+
+    $productIds = explode(',', $ids);
+
+    // Use the pre-production environment for testing
+    $response = $fliggyClient->usePreEnvironment()->queryProductBaseInfoByIds($productIds);
+
+    return $response->json();
+})->name('test.fliggy.products-by-ids');
