@@ -44,3 +44,9 @@ Route::get('/test-fliggy-products-by-ids', function (FliggyClient $fliggyClient)
 
 // The old /test-fliggy-product-detail/{productId} is now replaced by /products/{productId}
 // and handled by the ProductController.
+
+Route::get('/clear-product-cache/{productId}', function ($productId) {
+    $cacheKey = 'fliggy_product_' . $productId;
+    \Illuminate\Support\Facades\Cache::forget($cacheKey);
+    return "Cache cleared for product: " . e($productId);
+})->name('cache.clear');
