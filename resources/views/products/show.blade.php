@@ -41,13 +41,14 @@
                     <div class="calendar">
                         <h3 class="mb-4">Price Calendar</h3>
                         @php
-                            // Basic calendar generation
                             $prices = [];
-                            if (isset($priceStock['productPriceStock']['prices'])) {
-                                foreach ($priceStock['productPriceStock']['prices'] as $priceInfo) {
+                            // CORRECTED: Use 'calendarStocks' instead of 'prices'
+                            if (isset($priceStock['productPriceStock']['calendarStocks'])) {
+                                foreach ($priceStock['productPriceStock']['calendarStocks'] as $priceInfo) {
                                     $date = \Carbon\Carbon::createFromTimestampMs($priceInfo['date'])->format('Y-m-d');
                                     $prices[$date] = [
-                                        'price' => $priceInfo['price'] / 100, // Assuming price is in cents
+                                        // CORRECTED: Use 'distributionPrice' and it's already in yuan
+                                        'price' => $priceInfo['distributionPrice'],
                                         'stock' => $priceInfo['stock']
                                     ];
                                 }
