@@ -3,26 +3,82 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fliggy Products</title>
-    <!-- Bootstrap CSS -->
+    <title>Fliggy Products - NocoBase Style</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
+        :root {
+            --nocobase-bg-color: #f0f2f5;
+            --nocobase-content-bg-color: #ffffff;
+            --nocobase-border-color: #e8e8e8;
+            --nocobase-text-color: #262626;
+            --nocobase-text-color-secondary: #8c8c8c;
+            --nocobase-primary-color: #1890ff;
+        }
         body {
-            background-color: #f8f9fa;
+            background-color: var(--nocobase-bg-color);
+            color: var(--nocobase-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
         }
-        .container {
-            margin-top: 40px;
+        .main-content {
+            padding: 24px;
         }
-        .card {
-            margin-bottom: 20px;
+        .content-card {
+            background-color: var(--nocobase-content-bg-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
         }
-        .table-responsive {
-            margin-top: 20px;
-        }
-        .pagination-nav {
+        .card-header-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--nocobase-border-color);
+        }
+        .card-header-actions h5 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .card-body-content {
+            padding: 24px;
+        }
+        .table {
+            color: var(--nocobase-text-color);
+        }
+        .table thead th {
+            background-color: #fafafa;
+            border-bottom: 1px solid var(--nocobase-border-color);
+            color: var(--nocobase-text-color-secondary);
+            font-weight: 500;
+            padding: 16px;
+        }
+        .table tbody tr {
+            transition: background-color 0.3s;
+        }
+        .table tbody tr:hover {
+            background-color: #fafafa;
+        }
+        .table td {
+            border-bottom: 1px solid var(--nocobase-border-color);
+            vertical-align: middle;
+            padding: 16px;
+        }
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .table a {
+            color: var(--nocobase-primary-color);
+            text-decoration: none;
+        }
+        .table a:hover {
+            text-decoration: underline;
+        }
+        .card-footer-actions {
+            display: flex;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-top: 1px solid var(--nocobase-border-color);
         }
         .response-box {
             background-color: #282c34;
@@ -31,30 +87,31 @@
             border-radius: 5px;
             max-height: 400px;
             overflow-y: auto;
+            border: 1px solid var(--nocobase-border-color);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="mb-4">Fliggy Product List</h1>
-
-        @if ($error)
-            <div class="alert alert-danger">
-                <strong>API Error:</strong> {{ $error }}
+    <div class="main-content">
+        <div class="content-card">
+            <div class="card-header-actions">
+                <h5>Fliggy Products</h5>
+                <a href="{{ request()->fullUrl() }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </a>
             </div>
-        @endif
 
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Products</h5>
+            <div class="card-body-content">
+                @if ($error)
+                    <div class="alert alert-danger"><strong>API Error:</strong> {{ $error }}</div>
+                @endif
+
                 @if (empty($products) && !$error)
-                    <div class="alert alert-info">
-                        No products found for the current page. This might be the end of the list, or the test environment has no data.
-                    </div>
+                    <div class="alert alert-info">No products found for the current page.</div>
                 @else
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead class="table-dark">
+                        <table class="table">
+                            <thead>
                                 <tr>
                                     <th scope="col">Product ID</th>
                                     <th scope="col">Product Name</th>
@@ -89,39 +146,35 @@
                     </div>
                 @endif
             </div>
+
+            <div class="card-footer-actions">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item {{ $currentPage <= 1 ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ route('products.index', ['page' => $currentPage - 1]) }}">&laquo;</a>
+                        </li>
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link">{{ $currentPage }}</span>
+                        </li>
+                        <li class="page-item {{ !$hasMorePages ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ route('products.index', ['page' => $currentPage + 1]) }}">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </div>
 
-        <!-- Pagination -->
-        <nav class="pagination-nav" aria-label="Page navigation">
-            <div>
-                @if ($currentPage > 1)
-                    <a href="{{ route('products.index', ['page' => $currentPage - 1]) }}" class="btn btn-primary">&laquo; Previous</a>
-                @else
-                    <a href="#" class="btn btn-primary disabled" aria-disabled="true">&laquo; Previous</a>
-                @endif
-            </div>
-            <span>Page {{ $currentPage }}</span>
-            <div>
-                @if ($hasMorePages)
-                    <a href="{{ route('products.index', ['page' => $currentPage + 1]) }}" class="btn btn-primary">Next &raquo;</a>
-                @else
-                    <a href="#" class="btn btn-primary disabled" aria-disabled="true">Next &raquo;</a>
-                @endif
-            </div>
-        </nav>
-
         <!-- Raw API Response for Debugging -->
-        <div class="card mt-4">
-            <div class="card-header">
-                Raw API Response
+        <div class="content-card mt-4">
+            <div class="card-header-actions">
+                <h5>Raw API Response</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body-content">
                 <pre class="response-box"><code>{{ $rawResponse }}</code></pre>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
