@@ -63,11 +63,11 @@ Route::prefix('test')->name('test.')->group(function () {
     // Hengdian Test Routes
     Route::get('/hengdian-validate', function (HengdianClient $hengdianClient) {
         $responseXml = $hengdianClient->validate(
-            packageId: '3271',
+            packageId: '3312',
             hotelId: '001',
-            roomType: '标准间',
-            checkIn: now()->addDay()->format('Y-m-d'),
-            checkOut: now()->addDays(3)->format('Y-m-d'),
+            roomType: '大床房',
+            checkIn: now()->addDay(4)->format('Y-m-d'),
+            checkOut: now()->addDays(5)->format('Y-m-d'),
             paymentType: 1
         );
         if ($responseXml) {
