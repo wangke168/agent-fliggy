@@ -30,20 +30,17 @@ Route::prefix('products')->name('products.')->group(function () {
 | Webhook Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('api')->group(function () {
-    Route::prefix('webhooks')->name('webhooks.')->group(function () {
-        Route::prefix('fliggy')->name('fliggy.')->group(function () {
-            Route::post('product-change', [FliggyWebhookController::class, 'handleProductChange'])->name('product-change');
-            Route::post('order-status', [FliggyWebhookController::class, 'handleOrderStatus'])->name('order-status');
-        });
-        Route::prefix('hengdian')->name('hengdian.')->group(function () {
-            Route::post('room-status', [HengdianWebhookController::class, 'handleRoomStatus'])->name('room-status');
-        });
+Route::prefix('api/webhooks')->name('webhooks.')->group(function () {
+    Route::prefix('fliggy')->name('fliggy.')->group(function () {
+        Route::post('product-change', [FliggyWebhookController::class, 'handleProductChange'])->name('product-change');
+        Route::post('order-status', [FliggyWebhookController::class, 'handleOrderStatus'])->name('order-status');
     });
-
-    // Matched to the exact URL provided by the user
-    Route::prefix('webhook/agent')->name('webhook.agent.')->group(function () {
-        Route::post('ctrip', [CtripWebhookController::class, 'handleOrderNotice'])->name('ctrip');
+    Route::prefix('hengdian')->name('hengdian.')->group(function () {
+        Route::post('room-status', [HengdianWebhookController::class, 'handleRoomStatus'])->name('room-status');
+    });
+    Route::prefix('ctrip')->name('ctrip.')->group(function () {
+        // This is the new, cleaner URL for Ctrip order webhooks
+        Route::post('/', [CtripWebhookController::class, 'handleOrderNotice'])->name('notice');
     });
 });
 
