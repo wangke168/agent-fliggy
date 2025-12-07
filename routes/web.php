@@ -9,6 +9,7 @@ use App\Services\FliggyClient;
 use App\Services\HengdianClient;
 use App\Services\CtripClient;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return view('welcome');
@@ -104,4 +105,13 @@ Route::prefix('test')->name('test.')->group(function () {
         );
         return response()->json($result);
     })->name('ctrip.order-confirm');
+});
+
+// 这是一个纯粹用来测试连通性的接口
+Route::post('/ping', function (Request $request) {
+    return response()->json([
+        'message' => 'Pong! POST request received successfully.',
+        'your_ip' => $request->ip(), // 顺便看看服务器识别到的IP是谁
+        'data_received' => $request->all()
+    ]);
 });
