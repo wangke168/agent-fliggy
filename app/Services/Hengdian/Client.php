@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Hengdian;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -8,22 +8,29 @@ use Illuminate\Support\Facades\Log;
 use SimpleXMLElement;
 use DOMDocument;
 
-class HengdianClient
+/**
+ * 用于与横店影视城酒景产品进行交互的客户端。
+ * 该接口使用 XML over HTTP POST 的方式通信。
+ */
+class Client
 {
     protected string $url;
     protected string $username;
     protected string $password;
 
+    /**
+     * 构造函数，初始化配置。
+     */
     public function __construct()
     {
-        // Default to production URL
+        // 默认使用生产环境地址
         $this->url = Config::get('hengdian.url_production');
         $this->username = Config::get('hengdian.username');
         $this->password = Config::get('hengdian.password');
     }
 
     /**
-     * Force the client to use the test environment.
+     * 切换到测试环境。
      * @return $this
      */
     public function useTestEnvironment(): self
@@ -33,33 +40,26 @@ class HengdianClient
     }
 
     /**
-     * Send the XML request to the Hengdian API.
-     *
-     * @param string $xmlString The raw XML string to send.
+     * 发送 XML 请求的核心方法。
+     * @param string $xmlString 完整的 XML 请求字符串
      * @return SimpleXMLElement|null
      */
     private function sendRequest(string $xmlString): ?SimpleXMLElement
     {
-        Log::channel('hengdian')->info('Hengdian API Request:', ['url' => $this->url, 'xml' => $xmlString]);
+        Log::channel('hengdian')->info('横店 API 请求:', ['url' => $this->url, 'xml' => $xmlString]);
 
-        $response = Http::withHeaders([
-                'Content-Type' => 'text/xml; charset=utf-8',
-            ])
+        $response = Http::withHeaders(['Content-Type' => 'text/xml; charset=utf-8'])
             ->send('POST', $this->url, ['body' => $xmlString]);
 
         $responseBody = $response->body();
-        Log::channel('hengdian')->info('Hengdian API Response:', ['body' => $responseBody]);
+        Log::channel('hengdian')->info('横店 API 响应:', ['body' => $responseBody]);
 
         if ($response->successful()) {
             libxml_use_internal_errors(true);
             $xml = simplexml_load_string($responseBody);
             if ($xml === false) {
                 $errors = libxml_get_errors();
-                $errorMessages = [];
-                foreach ($errors as $error) {
-                    $errorMessages[] = $error->message;
-                }
-                Log::channel('hengdian')->error('Failed to parse response XML.', ['body' => $responseBody, 'errors' => $errorMessages]);
+                Log::channel('hengdian')->error('解析响应 XML 失败。', ['body' => $responseBody, 'errors' => $errors]);
                 libxml_clear_errors();
                 return null;
             }
@@ -70,9 +70,7 @@ class HengdianClient
     }
 
     /**
-     * Helper to convert a SimpleXMLElement to a string with a proper declaration.
-     * @param SimpleXMLElement $xml
-     * @return string
+     * 将 SimpleXMLElement 对象转换为带正确声明的 XML 字符串。
      */
     private function getXmlString(SimpleXMLElement $xml): string
     {
@@ -82,22 +80,14 @@ class HengdianClient
         $domNode = dom_import_simplexml($xml);
         $domNode = $dom->importNode($domNode, true);
         $dom->appendChild($domNode);
-        return $dom->saveXML(); // saveXML() on the document object includes the declaration
+        return $dom->saveXML();
     }
 
     /**
-     * 3.1 可订查询 (ValidateRQ)
+     * [3.1] 可订查询 (ValidateRQ)
      */
-    public function validate(
-        string $packageId,
-        string $hotelId,
-        string $roomType,
-        string $checkIn,
-        string $checkOut,
-        int $roomNum = 1,
-        int $customerNumber = 2,
-        int $paymentType = 1
-    ): ?SimpleXMLElement {
+    public function validate(string $packageId, string $hotelId, string $roomType, string $checkIn, string $checkOut, int $roomNum = 1, int $customerNumber = 2, int $paymentType = 1): ?SimpleXMLElement
+    {
         $xml = new SimpleXMLElement('<ValidateRQ/>');
 
         $authToken = $xml->addChild('AuthenticationToken');
@@ -118,13 +108,7 @@ class HengdianClient
     }
 
     /**
-     * 3.5 房态订阅 (SubscribeRoomStatusRQ)
-     *
-     * @param string $notifyUrl The URL to receive status updates.
-     * @param array $hotels An array of hotels and their room types to subscribe to.
-     *                      Example: [['hotelId' => '001', 'roomTypes' => ['标准间', '豪华间']]]
-     * @param bool $isUnsubscribe Set to true to unsubscribe.
-     * @return SimpleXMLElement|null
+     * [3.5] 房态订阅 (SubscribeRoomStatusRQ)
      */
     public function subscribeRoomStatus(string $notifyUrl, array $hotels = [], bool $isUnsubscribe = false): ?SimpleXMLElement
     {

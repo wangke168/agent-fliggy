@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Fliggy;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -9,17 +9,17 @@ use Illuminate\Http\Client\Response;
 use RuntimeException;
 
 /**
- * Client for interacting with the Fliggy Distribution API.
- *
- * Note: The signature generation logic is based on the provided documentation.
- * It's recommended to double-check the 'param' string format for each API call.
+ * 用于与飞猪分销 API v1 进行交互的客户端。
  */
-class FliggyClient
+class Client
 {
     protected string $distributorId;
     protected string $privateKey;
     protected string $baseUrl;
 
+    /**
+     * 构造函数，初始化配置。
+     */
     public function __construct()
     {
         $this->distributorId = Config::get('fliggy.distributor_id');
@@ -27,12 +27,12 @@ class FliggyClient
         $this->baseUrl = Config::get('fliggy.api_base_uri');
 
         if (empty($this->distributorId) || empty($this->privateKey)) {
-            throw new RuntimeException('Fliggy distributor ID or private key is not configured.');
+            throw new RuntimeException('飞猪分销商ID或私钥未配置。');
         }
     }
 
     /**
-     * Switch to use the pre-production API environment.
+     * 切换到预发环境。
      * @return $this
      */
     public function usePreEnvironment(): self
@@ -42,14 +42,16 @@ class FliggyClient
     }
 
     /**
-     * Generates the SHA256withRSA signature.
+     * 生成 SHA256withRSA 签名。
+     * @param string $dataToSign 待签名字符串
+     * @return string Base64编码后的签名
      */
     private function generateSign(string $dataToSign): string
     {
         $pem = "-----BEGIN PRIVATE KEY-----\n" . wordwrap($this->privateKey, 64, "\n", true) . "\n-----END PRIVATE KEY-----";
         $key = openssl_pkey_get_private($pem);
         if (!$key) {
-            throw new RuntimeException('Invalid private key provided for Fliggy API.');
+            throw new RuntimeException('飞猪API的私钥无效。');
         }
         openssl_sign($dataToSign, $signature, $key, OPENSSL_ALGO_SHA256);
         openssl_free_key($key);
@@ -57,23 +59,26 @@ class FliggyClient
     }
 
     /**
-     * The core method to send requests to the API.
+     * 发送 POST 请求的核心方法。
+     * @param string $path API路径
+     * @param array $body 请求体
+     * @return Response
      */
     private function post(string $path, array $body): Response
     {
         $fullUrl = $this->baseUrl . $path . '?format=json';
-        Log::channel('fliggy')->info('Fliggy API Request:', ['url' => $fullUrl, 'body' => $body]);
+        Log::channel('fliggy')->info('飞猪 API 请求:', ['url' => $fullUrl, 'body' => $body]);
         $response = Http::post($fullUrl, $body);
-        Log::channel('fliggy')->info('Fliggy API Response:', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
+        Log::channel('fliggy')->info('飞猪 API 响应:', ['status' => $response->status(), 'body' => $response->json() ?? $response->body()]);
         return $response;
     }
 
     /**
-     * A generic method to build and send requests.
+     * 构建并发送请求的通用方法。
      *
-     * @param string $path API Path
-     * @param array $params Request parameters
-     * @param array $signKeys Keys from params to include in the signature string, in order.
+     * @param string $path API 路径
+     * @param array $params 请求参数
+     * @param array $signKeys 用于签名的参数键名数组
      * @return Response
      */
     public function send(string $path, array $params, array $signKeys): Response
@@ -103,27 +108,33 @@ class FliggyClient
         return $this->post($path, $body);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | API Method Implementations
-    |--------------------------------------------------------------------------
-    */
-
+    /**
+     * [2.1] 分页获取产品基本信息
+     */
     public function queryProductBaseInfoByPage(int $pageNo = 1, int $pageSize = 10): Response
     {
         return $this->send('/api/v1/hotelticket/queryProductBaseInfoByPage', ['pageNo' => $pageNo, 'pageSize' => $pageSize], []);
     }
 
+    /**
+     * [2.2] 批量获取产品基本信息
+     */
     public function queryProductBaseInfoByIds(array $productIds): Response
     {
         return $this->send('/api/v1/hotelticket/queryProductBaseInfoByIds', ['productIds' => $productIds], ['productIds']);
     }
 
+    /**
+     * [2.3] 获取产品详情
+     */
     public function queryProductDetailInfo(string $productId): Response
     {
         return $this->send('/api/v1/hotelticket/queryProductDetailInfo', ['productId' => $productId], ['productId']);
     }
 
+    /**
+     * [2.4] 获取价格/库存信息
+     */
     public function queryProductPriceStock(string $productId, ?string $beginTime = null, ?string $endTime = null): Response
     {
         $params = ['productId' => $productId];
@@ -133,20 +144,14 @@ class FliggyClient
     }
 
     /**
-     * 3.1. 校验（预下单）接口 validateOrder
+     * [3.1] 校验（预下单）接口
      */
     public function validateOrder(array $orderData): Response
     {
-        // ATTEMPT 3: Strictly follow the documentation's literal value.
-        // The signature string is composed of values, not the object structure.
         $timestamp = round(microtime(true) * 1000);
         $productIdValue = data_get($orderData, 'productInfo.productId');
 
-        $stringToSign = implode('_', [
-            $this->distributorId,
-            $timestamp,
-            $productIdValue
-        ]);
+        $stringToSign = implode('_', [$this->distributorId, $timestamp, $productIdValue]);
 
         $body = array_merge([
             'distributorId' => $this->distributorId,
@@ -158,19 +163,14 @@ class FliggyClient
     }
 
     /**
-     * 3.3. 创建订单接口 createOrder
+     * [3.3] 创建订单接口
      */
     public function createOrder(array $orderData): Response
     {
-        // Reverting to the documented signature logic, but implemented manually like validateOrder.
         $timestamp = round(microtime(true) * 1000);
         $productIdValue = data_get($orderData, 'productInfo.productId');
 
-        $stringToSign = implode('_', [
-            $this->distributorId,
-            $timestamp,
-            $productIdValue
-        ]);
+        $stringToSign = implode('_', [$this->distributorId, $timestamp, $productIdValue]);
 
         $body = array_merge([
             'distributorId' => $this->distributorId,

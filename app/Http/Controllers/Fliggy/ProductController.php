@@ -1,19 +1,24 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Fliggy;
 
-use App\Services\FliggyClient;
+use App\Http\Controllers\Controller;
+use App\Services\Fliggy\Client as FliggyClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Cache;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * (遗留测试) 用于展示飞猪产品列表和详情页的控制器。
+ * 注意：此类中的方法使用了旧的视图，仅为保留历史测试功能。
+ * 新的SaaS功能应使用 App\Http\Controllers\SaaS\ProductController。
+ */
 class ProductController extends Controller
 {
     /**
-     * Display a listing of the products from Fliggy API.
+     * 从飞猪API获取产品列表并展示。
      */
     public function index(Request $request, FliggyClient $fliggyClient): View
     {
@@ -32,11 +37,11 @@ class ProductController extends Controller
             if ($response->successful() && isset($responseData['success']) && $responseData['success']) {
                 $products = $responseData['data']['productBaseInfos'] ?? [];
             } else {
-                $error = $responseData['msg'] ?? 'Failed to fetch products from Fliggy API.';
+                $error = $responseData['msg'] ?? '获取飞猪产品失败。';
             }
         } catch (\Exception $e) {
             $error = $e->getMessage();
-            Log::channel('fliggy')->error('Failed to call Fliggy API in ProductController: ' . $e->getMessage());
+            Log::channel('fliggy')->error('调用飞猪产品列表接口失败: ' . $e->getMessage());
         }
 
         return view('products.index', [
@@ -49,7 +54,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Display the specified product.
+     * 从飞猪API获取单个产品详情并展示。
      */
     public function show(string $productId, FliggyClient $fliggyClient): View
     {
@@ -68,10 +73,10 @@ class ProductController extends Controller
                 $priceData = $priceStockResponse->json();
 
                 if (!$detailResponse->successful() || !($detailData['success'] ?? false)) {
-                    throw new \Exception($detailData['msg'] ?? 'Failed to fetch product detail.');
+                    throw new \Exception($detailData['msg'] ?? '获取产品详情失败。');
                 }
                 if (!$priceStockResponse->successful() || !($priceData['success'] ?? false)) {
-                    Log::channel('fliggy')->warning('Failed to fetch price/stock for ' . $productId, $priceData);
+                    Log::channel('fliggy')->warning('获取产品价格库存失败 ' . $productId, $priceData);
                 }
 
                 return [
@@ -85,7 +90,7 @@ class ProductController extends Controller
 
         } catch (\Exception $e) {
             $error = $e->getMessage();
-            Log::channel('fliggy')->error('Failed to get product details for ' . $productId . ': ' . $e->getMessage());
+            Log::channel('fliggy')->error('获取飞猪产品详情异常 ' . $productId . ': ' . $e->getMessage());
             Cache::forget($cacheKey);
         }
 
@@ -98,7 +103,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Handle the booking form submission by validating the order.
+     * 处理飞猪产品的预下单(validateOrder)请求。
      */
     public function storeBooking(Request $request, string $productId, FliggyClient $fliggyClient): RedirectResponse
     {
@@ -114,45 +119,33 @@ class ProductController extends Controller
         try {
             $priceInCents = (int)($validated['price'] * 100);
 
-            // Construct the order data for validation
             $orderData = [
-                'outOrderId' => 'TEST-' . time(), // Unique external order ID
+                'outOrderId' => 'TEST-' . time(),
                 'productInfo' => [
                     'productId' => (int)$productId,
                     'price' => $priceInCents,
                     'quantity' => 1,
                     'travelDate' => $validated['selected_date'],
                 ],
-                'contactInfo' => [
-                    'name' => $validated['name'],
-                    'mobile' => $validated['mobile'],
-                ],
-                'travellerInfos' => [
-                    [
-                        'name' => $validated['name'],
-                        'certificatesType' => 3, // 3 = ID Card
-                        'certificates' => $validated['id_card'],
-                    ],
-                ],
+                'contactInfo' => ['name' => $validated['name'], 'mobile' => $validated['mobile']],
+                'travellerInfos' => [['name' => $validated['name'], 'certificatesType' => 3, 'certificates' => $validated['id_card']]],
                 'totalPrice' => $priceInCents,
             ];
 
-            // Call the validateOrder API
             $response = $fliggyClient->usePreEnvironment()->validateOrder($orderData);
             $responseData = $response->json();
 
             if ($response->successful() && isset($responseData['success']) && $responseData['success']) {
                 return redirect()->route('products.show', $productId)
-                                 ->with('booking_success', 'Validation successful! This booking is valid.');
+                                 ->with('booking_success', '飞猪预下单校验成功！');
             } else {
-                $errorMessage = $responseData['msg'] ?? 'The booking is not valid.';
-                return back()->with('booking_error', 'Validation Failed: ' . $errorMessage)
-                             ->withInput(); // Keep form data
+                $errorMessage = $responseData['msg'] ?? '预下单校验失败。';
+                return back()->with('booking_error', '校验失败: ' . $errorMessage)->withInput();
             }
 
         } catch (\Exception $e) {
-            Log::channel('fliggy')->error('Exception during order validation: ' . $e->getMessage());
-            return back()->with('booking_error', 'An unexpected error occurred: ' . $e->getMessage());
+            Log::channel('fliggy')->error('飞猪预下单异常: ' . $e->getMessage());
+            return back()->with('booking_error', '发生意外错误: ' . $e->getMessage());
         }
     }
 }
